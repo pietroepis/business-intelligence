@@ -2,6 +2,7 @@ library(quantmod)
 library(PerformanceAnalytics)
 library(dygraphs)
 library(tseries)
+library(shiny)
 
 stocks_colors = c("#cc3300", "#2eb82e", "#0052cc", "#ff9900", "#b3b300", "#cc0099")
 
@@ -266,7 +267,8 @@ AON_yearly <- periodReturn(x = stocks$AON, period = "yearly")
 KO_yearly <- periodReturn(x = stocks$KO, period = "yearly")
 PEP_yearly <- periodReturn(x = stocks$PEP, period = "yearly")
 
-yearly_returns = cbind(SBUX_yearly, MCD_yearly, AXP_yearly, AON_yearly, KO_yearly, PEP_yearly)[-12]
+yearly_returns = cbind(SBUX_yearly, MCD_yearly, AXP_yearly, AON_yearly, KO_yearly, PEP_yearly)
+yearly_returns = yearly_returns[-length(yearly_returns)]
 colnames(yearly_returns) <- c("SBUX", "MCD", "AXP", "AON", "KO", "PEP")
 index(yearly_returns) <- as.yearmon(index(yearly_returns))
 
