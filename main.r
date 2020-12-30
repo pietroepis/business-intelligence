@@ -3,6 +3,8 @@ library(PerformanceAnalytics)
 library(dygraphs)
 library(tseries)
 library(shiny)
+library(lubridate)
+library(forecast)
 
 stocks_colors = c("#cc3300", "#2eb82e", "#0052cc", "#ff9900", "#b3b300", "#cc0099")
 
@@ -123,11 +125,11 @@ quantile(stocks_cc_returns$AON)
 
 # KO
 par(mfrow = c(2, 2))
-hist(stocks_cc_returns$KO, xlab = "Return", ylab = "Frequency", main = "CC Returns Histogram - AON")
+hist(stocks_cc_returns$KO, xlab = "Return", ylab = "Frequency", main = "CC Returns Histogram - KO")
 points(density(stocks_cc_returns$KO), type="l", lwd = 2, col = stocks_colors[5])
 plot(density(stocks_cc_returns$KO), type="l", lwd = 2, col = stocks_colors[5], xlab = "Return", ylab = "Probability", 
      main = "Probability Density - KO")
-boxplot(as.numeric(stocks_cc_returns$KO), horizontal = T, col = stocks_colors[5], main = "Boxplot - AON")
+boxplot(as.numeric(stocks_cc_returns$KO), horizontal = T, col = stocks_colors[5], main = "Boxplot - KO")
 qqnorm(stocks_cc_returns$KO, main = "Q-Q Plot - KO")
 qqline(stocks_cc_returns$KO, lwd = 2, col = stocks_colors[5])
 
@@ -155,6 +157,26 @@ skewness(stocks_cc_returns$PEP)
 kurtosis(stocks_cc_returns$PEP)
 quantile(stocks_cc_returns$PEP)
 
+# Merged QQ Plot
+par(mfrow=c(3,2))
+qqnorm(stocks_cc_returns$SBUX, main = "QQ-PLOT SBUX", col = stocks_colors[1])
+qqline(stocks_cc_returns$SBUX)
+
+qqnorm(stocks_cc_returns$MCD, main = "QQ-PLOT MCD", col = stocks_colors[2])
+qqline(stocks_cc_returns$MCD)
+
+qqnorm(stocks_cc_returns$AXP, main = "QQ-PLOT AXP", col = stocks_colors[3])
+qqline(stocks_cc_returns$AXP)
+
+qqnorm(stocks_cc_returns$AON, main = "QQ-PLOT AON", col = stocks_colors[4])
+qqline(stocks_cc_returns$AON)
+
+qqnorm(stocks_cc_returns$KO, main = "QQ-PLOT KO", col = stocks_colors[5])
+qqline(stocks_cc_returns$KO)
+
+qqnorm(stocks_cc_returns$PEP, main = "QQ-PLOT PEP", col = stocks_colors[6])
+qqline(stocks_cc_returns$PEP)
+
 # Merged Boxplot
 par(mfrow = c(1, 1))
 boxplot(as.numeric(stocks_cc_returns$SBUX), as.numeric(stocks_cc_returns$MCD), as.numeric(stocks_cc_returns$AXP),
@@ -167,7 +189,7 @@ abline(h = 0, lwd = 2, lty = 2)
 covariance = cov(stocks_cc_returns)
 
 correlation = round(cor(stocks_cc_returns), 2)
-heatmap(correlation, main = "Correlation", scale = "none", Colv = NA, Rowv = NA,)
+heatmap(correlation, main = "Correlation", scale = "none", Colv = NA, Rowv = NA)
 
 SBUX_num <- as.numeric(stocks$SBUX)
 MCD_num <- as.numeric(stocks$MCD)
@@ -183,6 +205,44 @@ pairs(cbind(SBUX_num, MCD_num, AXP_num, AON_num, KO_num, PEP_num), pch=18,
 n = 80
 m = 30
 l = 10
+
+dataset <- getSymbols("SBUX", to = date_to, src = "yahoo", auto.assign = FALSE, periodicity = "monthly")$SBUX.Adjusted
+dataset <- cbind(dataset, getSymbols("MCD", to = date_to, src = "yahoo", auto.assign = FALSE, periodicity = "monthly")$MCD.Adjusted)
+dataset <- cbind(dataset, getSymbols("AXP", to = date_to, src = "yahoo", auto.assign = FALSE, periodicity = "monthly")$AXP.Adjusted)
+dataset <- cbind(dataset, getSymbols("AON", to = date_to, src = "yahoo", auto.assign = FALSE, periodicity = "monthly")$AON.Adjusted)
+dataset <- cbind(dataset, getSymbols("KO", to = date_to, src = "yahoo", auto.assign = FALSE, periodicity = "monthly")$KO.Adjusted)
+dataset <- cbind(dataset, getSymbols("PEP", to = date_to, src = "yahoo", auto.assign = FALSE, periodicity = "monthly")$PEP.Adjusted)
+dataset <- diff(log(dataset))
+dataset <- na.omit(dataset)
+colnames(dataset) <- c("SBUX", "MCD", "AXP", "AON", "KO", "PEP")
+index(dataset) <- as.yearmon(index(dataset))
+dataset <- aggregate(dataset, index(dataset), tail, 1)
+
+plot(stl(dataset[,1], s.window="period" ), main=paste("SBUX - Seasonal Decomposition"))
+plot(stl(dataset[,2], s.window="period" ), main=paste("MCD - Seasonal Decomposition"))
+plot(stl(dataset[,3], s.window="period" ), main=paste("AXP - Seasonal Decomposition"))
+plot(stl(dataset[,4], s.window="period" ), main=paste("AON - Seasonal Decomposition"))
+plot(stl(dataset[,5], s.window="period" ), main=paste("KO - Seasonal Decomposition"))
+plot(stl(dataset[,6], s.window="period" ), main=paste("PEP - Seasonal Decomposition"))
+
+trainSet <- dataset[(dim(dataset)[1] - (n + m + l)) : (dim(dataset)[1] - (m + l + 1))]
+testSet <- dataset[(dim(dataset)[1] - (m + l)) : (dim(dataset)[1] - (l + 1))]
+finalSet <- dataset[(dim(dataset)[1] - l) : (dim(dataset)[1])]
+
+for(col in 1:dim(dataset)[2])
+  for(ar in 1:10){
+    for(ma in 1:10){
+      try (fit <- arima(trainSet[,col], order = c(ar, 0, ma)))
+  
+      if(!is.null(fit)){
+        arma.predictions <- predict(fit, n.ahead = m)$pred
+        arma.forecast <- forecast(fit, h = length(testSet[,col]),level = c(95,80))
+        plot(arma.forecast, main = paste0("ARMA forecasts for ", colnames(dataset)[col], " returns"), xlab = "Data", ylab = "Ritorno %")
+        grid()
+        lines(testSet[,col])
+      }
+    }
+  }
 
 #### BETA COMPUTATION ####
 
@@ -295,3 +355,51 @@ for( i in 1:length(rs) ) {
 
 plot(risk, rs, pch=20, col="blue", xlab="risk (sigma)", ylab="return (mean)")
 points( MOP$ps, MOP$pm, pch=17, col="red" )
+
+budget <- 10000
+stocks_initial_prices <- window(stocks, start = index(stocks[dim(stocks)[1]]) %m+% months(-l))[1]
+stocks_final_prices <- stocks[dim(stocks)[1]]
+
+SBUX_nshares <- floor((budget * MOP$pw[1]) / as.numeric(stocks_initial_prices$SBUX))
+MCD_nshares <- floor((budget * MOP$pw[2]) / as.numeric(stocks_initial_prices$MCD))
+AXP_nshares <- floor((budget * MOP$pw[3]) / as.numeric(stocks_initial_prices$AXP))
+AON_nshares <- floor((budget * MOP$pw[4]) / as.numeric(stocks_initial_prices$AON))
+KO_nshares <- floor((budget * MOP$pw[5]) / as.numeric(stocks_initial_prices$KO))
+PEP_nshares <- floor((budget * MOP$pw[6]) / as.numeric(stocks_initial_prices$PEP))  
+
+SBUX_cost <- SBUX_nshares * as.numeric(stocks_initial_prices$SBUX)
+MCD_cost <- MCD_nshares * as.numeric(stocks_initial_prices$MCD)
+AXP_cost <- AXP_nshares * as.numeric(stocks_initial_prices$AXP)
+AON_cost <- AON_nshares * as.numeric(stocks_initial_prices$AON)
+KO_cost <- KO_nshares * as.numeric(stocks_initial_prices$KO)
+PEP_cost <- PEP_nshares * as.numeric(stocks_initial_prices$PEP)
+
+investment <- SBUX_cost + MCD_cost + AXP_cost + AON_cost + KO_cost + PEP_cost
+
+cat("Markowitz Optimal Portfolio composition:\n")
+cat("SBUX -> ", SBUX_nshares, "quote a", stocks_initial_prices$SBUX, "EUR, totale ", SBUX_cost, "EUR")
+cat("MCD -> ", MCD_nshares, "quote a", stocks_initial_prices$MCD, "EUR, totale ", MCD_cost, "EUR")
+cat("AXP -> ", AXP_nshares, "quote a", stocks_initial_prices$AXP, "EUR, totale ", AXP_cost, "EUR")
+cat("AON -> ", AON_nshares, "quote a", stocks_initial_prices$AON, "EUR, totale ", AON_cost, "EUR")
+cat("KO -> ", SBUX_nshares, "quote a", stocks_initial_prices$KO, "EUR, totale ", KO_cost, "EUR")
+cat("PEP -> ", SBUX_nshares, "quote a", stocks_initial_prices$PEP, "EUR, totale ", PEP_cost, "EUR")
+cat("Totale Investito:", investment)
+cat("Residuo rispetto al budget: ", budget - investment)
+
+portfolio_value <- as.numeric(SBUX_nshares * stocks_final_prices$SBUX) +
+                   as.numeric(MCD_nshares * stocks_final_prices$MCD) +
+                   as.numeric(AXP_nshares * stocks_final_prices$AXP) + 
+                   as.numeric(AON_nshares * stocks_final_prices$AON) +
+                   as.numeric(KO_nshares * stocks_final_prices$KO) + 
+                   as.numeric(PEP_nshares * stocks_final_prices$PEP)
+cat("Valore finale del Portfolio =", portfolio_value, "EUR")
+
+actual_return <- MOP$pw[1] * (as.numeric(stocks_final_prices$SBUX) / as.numeric(stocks_initial_prices$SBUX) - 1) +
+                    MOP$pw[2] * (as.numeric(stocks_final_prices$MCD) / as.numeric(stocks_initial_prices$MCD) - 1) +
+                    MOP$pw[3] * (as.numeric(stocks_final_prices$AXP) / as.numeric(stocks_initial_prices$AXP) - 1) +
+                    MOP$pw[4] * (as.numeric(stocks_final_prices$AON) / as.numeric(stocks_initial_prices$AON) - 1) +
+                    MOP$pw[5] * (as.numeric(stocks_final_prices$KO) / as.numeric(stocks_initial_prices$KO) - 1) +
+                    MOP$pw[6] * (as.numeric(stocks_final_prices$PEP) / as.numeric(stocks_initial_prices$PEP) - 1)
+
+cat("Ritorno atteso:", MOP$pm)
+cat("Ritorno effettivo:", actual_return)
