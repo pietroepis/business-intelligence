@@ -6,6 +6,8 @@ library(shiny)
 library(lubridate)
 library(forecast)
 
+rm(list = ls())
+
 stocks_colors = c("#cc3300", "#2eb82e", "#0052cc", "#ff9900", "#b3b300", "#cc0099")
 
 #### DATA SUMMARY ####
@@ -142,11 +144,11 @@ quantile(stocks_cc_returns$KO)
 
 # PEP
 par(mfrow = c(2, 2))
-hist(stocks_cc_returns$PEP, xlab = "Return", ylab = "Frequency", main = "CC Returns Histogram - AON")
+hist(stocks_cc_returns$PEP, xlab = "Return", ylab = "Frequency", main = "CC Returns Histogram - PEP")
 points(density(stocks_cc_returns$PEP), type="l", lwd = 2, col = stocks_colors[6])
 plot(density(stocks_cc_returns$PEP), type="l", lwd = 2, col = stocks_colors[6], xlab = "Return", ylab = "Probability", 
      main = "Probability Density - PEP")
-boxplot(as.numeric(stocks_cc_returns$PEP), horizontal = T, col = stocks_colors[6], main = "Boxplot - AON")
+boxplot(as.numeric(stocks_cc_returns$PEP), horizontal = T, col = stocks_colors[6], main = "Boxplot - PEP")
 qqnorm(stocks_cc_returns$PEP, main = "Q-Q Plot - PEP")
 qqline(stocks_cc_returns$PEP, lwd = 2, col = stocks_colors[6])
 
@@ -206,43 +208,57 @@ n = 80
 m = 30
 l = 10
 
-dataset <- getSymbols("SBUX", to = date_to, src = "yahoo", auto.assign = FALSE, periodicity = "monthly")$SBUX.Adjusted
-dataset <- cbind(dataset, getSymbols("MCD", to = date_to, src = "yahoo", auto.assign = FALSE, periodicity = "monthly")$MCD.Adjusted)
-dataset <- cbind(dataset, getSymbols("AXP", to = date_to, src = "yahoo", auto.assign = FALSE, periodicity = "monthly")$AXP.Adjusted)
-dataset <- cbind(dataset, getSymbols("AON", to = date_to, src = "yahoo", auto.assign = FALSE, periodicity = "monthly")$AON.Adjusted)
-dataset <- cbind(dataset, getSymbols("KO", to = date_to, src = "yahoo", auto.assign = FALSE, periodicity = "monthly")$KO.Adjusted)
-dataset <- cbind(dataset, getSymbols("PEP", to = date_to, src = "yahoo", auto.assign = FALSE, periodicity = "monthly")$PEP.Adjusted)
+dataset <- getSymbols("SBUX", to = date_to, src = "yahoo", auto.assign = FALSE,)$SBUX.Adjusted
+dataset <- cbind(dataset, getSymbols("MCD", to = date_to, src = "yahoo", auto.assign = FALSE)$MCD.Adjusted)
+dataset <- cbind(dataset, getSymbols("AXP", to = date_to, src = "yahoo", auto.assign = FALSE)$AXP.Adjusted)
+dataset <- cbind(dataset, getSymbols("AON", to = date_to, src = "yahoo", auto.assign = FALSE)$AON.Adjusted)
+dataset <- cbind(dataset, getSymbols("KO", to = date_to, src = "yahoo", auto.assign = FALSE)$KO.Adjusted)
+dataset <- cbind(dataset, getSymbols("PEP", to = date_to, src = "yahoo", auto.assign = FALSE)$PEP.Adjusted)
 dataset <- diff(log(dataset))
 dataset <- na.omit(dataset)
 colnames(dataset) <- c("SBUX", "MCD", "AXP", "AON", "KO", "PEP")
-index(dataset) <- as.yearmon(index(dataset))
 dataset <- aggregate(dataset, index(dataset), tail, 1)
 
-plot(stl(dataset[,1], s.window="period" ), main=paste("SBUX - Seasonal Decomposition"))
-plot(stl(dataset[,2], s.window="period" ), main=paste("MCD - Seasonal Decomposition"))
-plot(stl(dataset[,3], s.window="period" ), main=paste("AXP - Seasonal Decomposition"))
-plot(stl(dataset[,4], s.window="period" ), main=paste("AON - Seasonal Decomposition"))
-plot(stl(dataset[,5], s.window="period" ), main=paste("KO - Seasonal Decomposition"))
-plot(stl(dataset[,6], s.window="period" ), main=paste("PEP - Seasonal Decomposition"))
+dataset_monthly <- to.monthly(dataset, OHLC = F)
+index(dataset) <- as.yearmon(index(dataset))
 
-trainSet <- dataset[(dim(dataset)[1] - (n + m + l)) : (dim(dataset)[1] - (m + l + 1))]
-testSet <- dataset[(dim(dataset)[1] - (m + l)) : (dim(dataset)[1] - (l + 1))]
-finalSet <- dataset[(dim(dataset)[1] - l) : (dim(dataset)[1])]
+plot(stl(dataset_monthly[,1], s.window="period" ), main=paste("SBUX - Seasonal Decomposition"))
+plot(stl(dataset_monthly[,2], s.window="period" ), main=paste("MCD - Seasonal Decomposition"))
+plot(stl(dataset_monthly[,3], s.window="period" ), main=paste("AXP - Seasonal Decomposition"))
+plot(stl(dataset_monthly[,4], s.window="period" ), main=paste("AON - Seasonal Decomposition"))
+plot(stl(dataset_monthly[,5], s.window="period" ), main=paste("KO - Seasonal Decomposition"))
+plot(stl(dataset_monthly[,6], s.window="period" ), main=paste("PEP - Seasonal Decomposition"))
 
-for(col in 1:dim(dataset)[2])
+trainSet <- dataset_monthly[(dim(dataset_monthly)[1] - (n + m + l)) : (dim(dataset_monthly)[1] - (m + l))]
+testSet <- dataset_monthly[(dim(dataset_monthly)[1] - (m + l)) : (dim(dataset_monthly)[1] - (l + 1))]
+finalSet <- dataset_monthly[(dim(dataset_monthly)[1] - l) : (dim(dataset_monthly)[1])]
+
+getBestModel <- function(train, test, stockName){
+  minErrorModel <- NULL
+  
   for(ar in 1:10){
     for(ma in 1:10){
-      try (fit <- arima(trainSet[,col], order = c(ar, 0, ma)))
-  
-      if(!is.null(fit)){
-        arma.predictions <- predict(fit, n.ahead = m)$pred
-        arma.forecast <- forecast(fit, h = length(testSet[,col]),level = c(95,80))
-        plot(arma.forecast, main = paste0("ARMA forecasts for ", colnames(dataset)[col], " returns"), xlab = "Data", ylab = "Ritorno %")
-        grid()
-        lines(testSet[,col])
-      }
+      fit <- arima(train, order = c(ar, 0, ma))
+      arma.forecast <- forecast(fit, h = length(test), level = c(95,80))
+      plot(arma.forecast, main = paste0("Forecasts for ARIMA(", ar, ", 0, ", ma, ") - ", stockName))
+      lines(test)
+      
+      rmse <- accuracy(arma.forecast, test)[2] 
+      
+      if (is.null(minErrorModel) || rmse < minErrorModel[3])
+        minErrorModel <- c(ar, ma, rmse, arma.forecast)
     }
   }
+  
+  return(minErrorModel)
+}
+
+SBUX_model <- getBestModel(trainSet$SBUX, testSet$SBUX, "SBUX")
+MCD_model <- getBestModel(trainSet$MCD, testSet$MCD, "MCD")
+AXP_model <- getBestModel(trainSet$AXP, testSet$AXP, "AXP")
+AON_model <- getBestModel(trainSet$AON, testSet$AON, "AON")
+KO_model <- getBestModel(trainSet$SBUX, testSet$KO, "KO")
+PEP_model <- getBestModel(trainSet$SBUX, testSet$PEP, "PEP")
 
 #### BETA COMPUTATION ####
 
@@ -308,7 +324,7 @@ plot(PEP_betas, main = "PEP Beta")
 
 #### PORTFOLIO MANAGEMENT ####
 
-date_to <- as.Date("2018-10-31")
+date_to <- as.Date("2020-10-31")
 SBUX <- getSymbols("SBUX", to = date_to, src = "yahoo", auto.assign = FALSE)
 MCD <- getSymbols("MCD", to = date_to, src = "yahoo", auto.assign = FALSE)
 AXP <- getSymbols("AXP", to = date_to, src = "yahoo", auto.assign = FALSE)
@@ -328,7 +344,7 @@ KO_yearly <- periodReturn(x = stocks$KO, period = "yearly")
 PEP_yearly <- periodReturn(x = stocks$PEP, period = "yearly")
 
 yearly_returns = cbind(SBUX_yearly, MCD_yearly, AXP_yearly, AON_yearly, KO_yearly, PEP_yearly)
-yearly_returns = yearly_returns[-length(yearly_returns)]
+yearly_returns = yearly_returns[-dim(yearly_returns)[1]]
 colnames(yearly_returns) <- c("SBUX", "MCD", "AXP", "AON", "KO", "PEP")
 index(yearly_returns) <- as.yearmon(index(yearly_returns))
 
@@ -340,6 +356,8 @@ cat("AXP Weight: ", MOP$pw[3], "\n")
 cat("AON Weight: ", MOP$pw[4], "\n")
 cat("KO Weight: ", MOP$pw[5], "\n")
 cat("PEP Weight: ", MOP$pw[6], "\n")
+
+barplot(MOP$pw, col = stocks_colors, names = c("SBUX", "MCD", "AXP", "AON", "KO", "PEP"))
 
 rs <- seq(0.0,1.0,length.out=150)
 risk <- numeric(length(rs))+NA
@@ -360,12 +378,14 @@ budget <- 10000
 stocks_initial_prices <- window(stocks, start = index(stocks[dim(stocks)[1]]) %m+% months(-l))[1]
 stocks_final_prices <- stocks[dim(stocks)[1]]
 
-SBUX_nshares <- floor((budget * MOP$pw[1]) / as.numeric(stocks_initial_prices$SBUX))
-MCD_nshares <- floor((budget * MOP$pw[2]) / as.numeric(stocks_initial_prices$MCD))
-AXP_nshares <- floor((budget * MOP$pw[3]) / as.numeric(stocks_initial_prices$AXP))
-AON_nshares <- floor((budget * MOP$pw[4]) / as.numeric(stocks_initial_prices$AON))
-KO_nshares <- floor((budget * MOP$pw[5]) / as.numeric(stocks_initial_prices$KO))
-PEP_nshares <- floor((budget * MOP$pw[6]) / as.numeric(stocks_initial_prices$PEP))  
+transaction_cost = 0.02
+
+SBUX_nshares <- floor((budget * MOP$pw[1]) / (as.numeric(stocks_initial_prices$SBUX) + as.numeric(stocks_initial_prices$SBUX) * transaction_cost))
+MCD_nshares <- floor((budget * MOP$pw[2]) / (as.numeric(stocks_initial_prices$MCD) + as.numeric(stocks_initial_prices$MCD) * transaction_cost))
+AXP_nshares <- floor((budget * MOP$pw[3]) / (as.numeric(stocks_initial_prices$AXP) + as.numeric(stocks_initial_prices$AXP) * transaction_cost))
+AON_nshares <- floor((budget * MOP$pw[4]) / (as.numeric(stocks_initial_prices$AON) + as.numeric(stocks_initial_prices$AON) * transaction_cost))
+KO_nshares <- floor((budget * MOP$pw[5]) / (as.numeric(stocks_initial_prices$KO) + as.numeric(stocks_initial_prices$KO) * transaction_cost))
+PEP_nshares <- floor((budget * MOP$pw[6]) / (as.numeric(stocks_initial_prices$PEP) + as.numeric(stocks_initial_prices$PEP) * transaction_cost))  
 
 SBUX_cost <- SBUX_nshares * as.numeric(stocks_initial_prices$SBUX)
 MCD_cost <- MCD_nshares * as.numeric(stocks_initial_prices$MCD)
