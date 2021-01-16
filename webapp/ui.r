@@ -1,4 +1,5 @@
 ui <- fluidPage(
+  #### DESCRIPTIVE ANALYTICS ####
   titlePanel("Descriptive Analytics"),
   sidebarLayout(
     sidebarPanel(
@@ -6,7 +7,7 @@ ui <- fluidPage(
         inputId = "date_range", 
         label = "Period Range", 
         start = index(stocks_cc_returns[1,]), 
-        end = Sys.Date()
+        end = index(stocks_cc_returns[dim(stocks_cc_returns)[1],])
       ),
       
       radioButtons(
@@ -30,7 +31,6 @@ ui <- fluidPage(
         )
       )
     ),
-    
     mainPanel(
       tableOutput("descriptive_statistics"),
       conditionalPanel(
@@ -64,6 +64,46 @@ ui <- fluidPage(
     
     mainPanel(
       plotOutput(outputId = "plot_returns", height = "400px")
+    )
+  ),
+  
+  #### PORTFOLIO MANAGEMENT ####
+  titlePanel("Portfolio Management"),
+  sidebarLayout(
+    sidebarPanel(
+      sliderInput(inputId = "budget", label="Budget", 
+                  min = 0, max = 100000,
+                  value = c(50000), pre = "EUR "),
+      plotOutput(outputId = "plot_stocks_pie"),
+      br(), strong(paste0("Prezzi degli stock al ", format(date_to %m+% months(-10), "%d/%m/%Y"))), br(),
+      "SBUX: ", round(stocks_initial_prices$SBUX, 2), " EUR", br(),
+      "MCD: ", round(stocks_initial_prices$MCD, 2), " EUR", br(),
+      "AXP: ", round(stocks_initial_prices$AXP, 2), " EUR", br(),
+      "AON: ", round(stocks_initial_prices$AON, 2), " EUR", br(),
+      "KO: ", round(stocks_initial_prices$KO, 2), " EUR", br(),
+      "PEP: ", round(stocks_initial_prices$PEP, 2), " EUR", br(),
+    ),
+    
+    mainPanel(
+      "Totale Investito: ", textOutput("tot_investito"), br(),
+      "Residuo: ", textOutput("residuo"), br(),
+      
+      plotOutput(outputId = "plot_n_stocks", height = "400px")
+    )
+  ),
+  
+  #### PREDICTIVE ANALYTICS ####
+  titlePanel("Predictive Analytics"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput(
+        inputId = "select_stock_forecast",
+        label="Select Stock",
+        choices = c("SBUX", "MCD", "AXP", "AON", "KO", "PEP")
+      )
+    ),
+    mainPanel(
+      plotOutput(outputId = "plot_prediction", height = "400px")
     )
   )
 )
