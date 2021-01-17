@@ -426,7 +426,7 @@ rf_return <- (1 + risk_free_rate)^(10/12)
 market_return <- as.numeric(SP500$SP500.Adjusted[as.yearmon("ott 2020")]) / 
                 as.numeric(SP500$SP500.Adjusted[as.yearmon("gen 2020")])
             
-# Expected Returns
+# Expected Returns (beta at the beginning of l months)
 er_SBUX <- rf_return + as.numeric(SBUX_betas[as.yearmon("gen 2020")]) * (market_return - rf_return)
 er_MCD <- rf_return + as.numeric(MCD_betas[as.yearmon("gen 2020")]) * (market_return - rf_return)
 er_AXP <- rf_return + as.numeric(AXP_betas[as.yearmon("gen 2020")]) * (market_return - rf_return)
