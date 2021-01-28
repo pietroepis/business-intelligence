@@ -29,4 +29,4 @@ Best parameters for _AR_ and _MA_ are defined with grid search, by assessing RMS
 Final prediction of l = 10 months (_January 2020_ to _October 2020_) and calculation of Markowitz Optimal Portfolio basing on predicted values
 
 **Beta**\
-Computation of \beta coefficient both on whole periodo and with sliding window of four months.
+Computation of $\beta$ coefficient both on whole periodo and with sliding window of four months.
