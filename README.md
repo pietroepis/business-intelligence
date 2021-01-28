@@ -26,7 +26,8 @@ Computation of covariance matrix, correlation heatmap and pair-wise scatter plot
 Forecasting with **ARIMA** (Autoregressive Integrated Moving Average)\
 Training on n = 80 months (_November 2010_ to _June 2017_), Test on m = 30 months (_July 2017_ to _December 2019_)\
 Best parameters for _AR_ and _MA_ are defined with grid search, by assessing RMSE (Root Mean Square Error)\
-Final prediction of l = 10 months (_January 2020_ to _October 2020_) and definition of investment strategy basing on these values
+Final prediction of l = 10 months (_January 2020_ to _October 2020_) and definition of investment strategy basing on these values\
+Plot of predicted values with 80 and 95 % confidence level bands
 
 **Beta**\
 Computation of _beta_ coefficient (referring on S&P500 index) both on whole period and with sliding window of four months.\
