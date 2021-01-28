@@ -13,10 +13,10 @@ Following stocks have been chosen:
 | Coca Cola | KO | Consumer Staples |
 | PepsiCo, Inc. | PEP | Consumer Staples |
 
-**Data Summary**
+**Data Summary**\
 Data is loaded from _Yahoo! Finance_ and presented through simple charts
 
-**Descriptive Analytics**
+**Descriptive Analytics**\
 Computation of simple and continuously componded returns, basic analysis of trends, peaks and valleys detection\
 Generation of diagnostic plots for every stock (Histogram, PDF, Boxplot and Q-Q Plot)\
 Descriptive statistic indices calculation (mean, variance, standard deviation, quantiles, skewness, kurtosis)\
