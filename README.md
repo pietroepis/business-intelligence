@@ -1,5 +1,5 @@
 # business-intelligence
-"Business Intelligence per i Servizi Finanziari" Project - UniMiB
+Business Intelligence for Financial Services Project - UniMiB
 
 The project is focalized on data acquisition, visualization, exploratory analysis, predictive analysis and (simulated) portfolio management, web applet
 
